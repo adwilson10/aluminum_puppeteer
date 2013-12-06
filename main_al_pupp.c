@@ -144,6 +144,21 @@ int main()
     mLED_3_Off();
     mLED_4_Off();
 
+    ////////////////////////////////////////
+    // ADW - 12/6/13 Initialize ADC Pin B2 for Automatic sampling, manual conversion
+    AD1PCFG = 0xFFFB; // all PORTB = Digital but RB2 = analog 
+    AD1CON1 = 0x0004; // ASAM bit = 1 implies acquisition
+    // starts immediately after last 
+    // conversion is done
+    AD1CHS = 0x00020000; // Connect RB2/AN2 as CH0 input
+    // in this example RB7/AN7 is the input
+    AD1CSSL = 0;
+    AD1CON3 = 0x0002; // Sample time manual, TAD = internal 6 TPB
+    AD1CON2 = 0;
+
+    AD1CON1SET = 0x8000; // turn ON the ADC
+    ////////////////////////////////////////
+
     // Initialize the PWM pins:
     InitMotorPWM();
     // Re-initialize UART2

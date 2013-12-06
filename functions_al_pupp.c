@@ -202,6 +202,9 @@ static short int timeout_flag = 0;
 static short int bad_data_counter = 0;
 
 //  Kinematic controller variables:
+static unsigned int call_count = 0;
+static unsigned int adc_count = 0;
+static int ADCValue[1500] = { 0 }; //Hard-code 5sec of samples at 300Hz
 static float dir_sign = 1.0;
 static float tvec[2] = {0.0, 0.0};
 static float xvec[3] = {0.0, 0.0, 0.0};
@@ -504,8 +507,11 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 //  using forward kinematics and odometry data.  We will also decide 
 //  if we new controls are needed to be sent to the wheels so that 
 //  the robot can continue to do what it is supposed to be doing.
+
+//  ADW 12/6/13 - Remapping ISR to poll ACS711 current sensor 
 void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 {
+
     float Vr = 0.0;
     float Vl = 0.0;
     float Vtl = 0.0;
@@ -513,7 +519,6 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     float omega = 0.0;
     float R = 0.0;
     int top_left_current, top_right_current, left_current, right_current;
-    static unsigned int call_count = 0;
     const unsigned int num = floor(frequency/ controller_freq);
     
     left_current = left_steps;
@@ -549,95 +554,107 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     if(fabsf(top_right_error) > ERROR_DEADBAND)
 	SetSpeedTopRight(top_right_error, dtbase);
 
-    // Now let's get the wheels speeds and convert them into
-    // translational velocities
-    Vr = (DWHEEL/2.0)*(right_speed);
-    Vl = (DWHEEL/2.0)*(left_speed);
-    Vtl = (DPULLEY/2.0)*(top_left_speed);
-    Vtr = (DPULLEY/2.0)*(top_right_speed);
-		
-    // Let's calculate the distance to the instantaneous
-    // center of rotation and the angular vel.
-    R = WIDTH*((Vl+Vr)/(Vr-Vl));
-    omega = (Vr-Vl)/(2.0*WIDTH);
-		
-    // Now we do the forward kinematics
-    if (fabsf(R) > 10000.0) // robot is essentially going straight
-    {
-	// So, let's perform the straight version kinematics
-	x_pos += Vr*dtbase*cosf(theta);
-	y_pos += Vr*dtbase*sinf(theta);
+    // Take ADC sample and save
+    if (movement_flag==1 && adc_count>4){
+        AD1CON1SET = 0x0002;        // start Converting
+        while (!(AD1CON1 & 0x0001));// conversion done?
+        ADCValue[call_count] = ADC1BUF0;        // yes then get ADC value
+        adc_count=0;
+        call_count++;
+    } else {
+        adc_count++;
     }
-    else
-    {
-	// Now let's perform the general kinematics
-	x_pos += cosf(omega*dtbase)*R*sinf(theta)
-	    +sinf(omega*dtbase)*R*cosf(theta)-R*sinf(theta);
-	y_pos += sinf(omega*dtbase)*R*sinf(theta)
-	    -cosf(omega*dtbase)*R*cosf(theta)+R*cosf(theta);
-	theta += omega*dtbase;
-    }
-	
-    // Let's force theta to be between 0 and 2pi
-    theta = clamp_angle(theta);
-	
-    // Now, let's update the height of our string
-    height_left += Vtl*dtbase;
-    height_right += Vtr*dtbase;
-	
-    // Are we just controlling wheel speeds?
-    switch (exec_state)
-    {
-    case 1:
-	break;
-    case 2:
-	// Are we performing an initial rotation to
-	// begin heading towards our destination?
-	// Now, let's determine if we have reached the desired orientation yet
-	if(fabsf(theta-first_angle) <= 0.01 ||
-	   fabsf(fabsf(theta-first_angle)-2.0*M_PI) <= 0.01)
-	{
-	    theta = first_angle;
-	    exec_state = 3;
-	    pose_flag = 1;
-	    right_desired = 0.0;
-	    left_desired = 0.0;
-	}
-	break;
-    case 3:
-	// Now, are we there yet?
-	if(fabsf(x_sent-x_pos) < 0.05 && fabsf(y_sent-y_pos) < 0.05)
-	{
-	    x_pos = x_sent;
-	    y_pos = y_sent;
-	    right_desired = 0.0;
-	    left_desired = 0.0;
-	    exec_state = 4;
-	    pose_flag = 1;
-	}
-	break;
-    case 4:
-	// Now, let's determine if we have reached the final orientation yet
-	if(fabsf(theta-ori_sent) <= 0.01 ||
-	   fabsf(fabsf(theta-ori_sent)-2.0*M_PI) <= 0.01)
-	{
-	    theta = ori_sent;
-	    // Since we have, we don't need to keep updating the kinematics
-	    exec_state = 0;
-	    pose_flag = 0;
-	    // Also, let's stop the motors:
-	    right_desired = 0.0;
-	    left_desired = 0.0;
-	}
-	break;
-    case 5:
-	running_dt += ticktime*(((float) ReadTimer2())+1.0)+dtbase;
-	// this means we are running the kinematic controller
-	if (call_count%num == 0 && pause_controller_flag != 1)
-	    controller_flag = 1;
-	break;
-    }
-    call_count++;
+
+
+/*    // Now let's get the wheels speeds and convert them into*/
+/*    // translational velocities*/
+/*    Vr = (DWHEEL/2.0)*(right_speed);*/
+/*    Vl = (DWHEEL/2.0)*(left_speed);*/
+/*    Vtl = (DPULLEY/2.0)*(top_left_speed);*/
+/*    Vtr = (DPULLEY/2.0)*(top_right_speed);*/
+/*		*/
+/*    // Let's calculate the distance to the instantaneous*/
+/*    // center of rotation and the angular vel.*/
+/*    R = WIDTH*((Vl+Vr)/(Vr-Vl));*/
+/*    omega = (Vr-Vl)/(2.0*WIDTH);*/
+/*		*/
+/*    // Now we do the forward kinematics*/
+/*    if (fabsf(R) > 10000.0) // robot is essentially going straight*/
+/*    {*/
+/*	// So, let's perform the straight version kinematics*/
+/*	x_pos += Vr*dtbase*cosf(theta);*/
+/*	y_pos += Vr*dtbase*sinf(theta);*/
+/*    }*/
+/*    else*/
+/*    {*/
+/*	// Now let's perform the general kinematics*/
+/*	x_pos += cosf(omega*dtbase)*R*sinf(theta)*/
+/*	    +sinf(omega*dtbase)*R*cosf(theta)-R*sinf(theta);*/
+/*	y_pos += sinf(omega*dtbase)*R*sinf(theta)*/
+/*	    -cosf(omega*dtbase)*R*cosf(theta)+R*cosf(theta);*/
+/*	theta += omega*dtbase;*/
+/*    }*/
+/*	*/
+/*    // Let's force theta to be between 0 and 2pi*/
+/*    theta = clamp_angle(theta);*/
+/*	*/
+/*    // Now, let's update the height of our string*/
+/*    height_left += Vtl*dtbase;*/
+/*    height_right += Vtr*dtbase;*/
+/*	*/
+/*    // Are we just controlling wheel speeds?*/
+/*    switch (exec_state)*/
+/*    {*/
+/*    case 1:*/
+/*	break;*/
+/*    case 2:*/
+/*	// Are we performing an initial rotation to*/
+/*	// begin heading towards our destination?*/
+/*	// Now, let's determine if we have reached the desired orientation yet*/
+/*	if(fabsf(theta-first_angle) <= 0.01 ||*/
+/*	   fabsf(fabsf(theta-first_angle)-2.0*M_PI) <= 0.01)*/
+/*	{*/
+/*	    theta = first_angle;*/
+/*	    exec_state = 3;*/
+/*	    pose_flag = 1;*/
+/*	    right_desired = 0.0;*/
+/*	    left_desired = 0.0;*/
+/*	}*/
+/*	break;*/
+/*    case 3:*/
+/*	// Now, are we there yet?*/
+/*	if(fabsf(x_sent-x_pos) < 0.05 && fabsf(y_sent-y_pos) < 0.05)*/
+/*	{*/
+/*	    x_pos = x_sent;*/
+/*	    y_pos = y_sent;*/
+/*	    right_desired = 0.0;*/
+/*	    left_desired = 0.0;*/
+/*	    exec_state = 4;*/
+/*	    pose_flag = 1;*/
+/*	}*/
+/*	break;*/
+/*    case 4:*/
+/*	// Now, let's determine if we have reached the final orientation yet*/
+/*	if(fabsf(theta-ori_sent) <= 0.01 ||*/
+/*	   fabsf(fabsf(theta-ori_sent)-2.0*M_PI) <= 0.01)*/
+/*	{*/
+/*	    theta = ori_sent;*/
+/*	    // Since we have, we don't need to keep updating the kinematics*/
+/*	    exec_state = 0;*/
+/*	    pose_flag = 0;*/
+/*	    // Also, let's stop the motors:*/
+/*	    right_desired = 0.0;*/
+/*	    left_desired = 0.0;*/
+/*	}*/
+/*	break;*/
+/*    case 5:*/
+/*	running_dt += ticktime*(((float) ReadTimer2())+1.0)+dtbase;*/
+/*	// this means we are running the kinematic controller*/
+/*	if (call_count%num == 0 && pause_controller_flag != 1)*/
+/*	    controller_flag = 1;*/
+/*	break;*/
+/*    }*/
+
     mT2ClearIntFlag(); 		// clear interrupt flag
 }
 
