@@ -44,6 +44,8 @@ void InitTimer2(void);
 void InitTimer4(void);					
 void InitMotorPWM(void);				
 void InitEncoder(void);					
+void StopMotorPWM(void);
+void StopEncoder(void);
 
 /******************************************************************************
  * FUNCTIONS FOR COMMUNICATION ************************************************
@@ -82,6 +84,8 @@ void delay(void);
 float clamp_angle(float th);
 float find_min_angle(float a, float b);
 float sign(float x);
+// send back adc data function:
+void send_adc_data(void);
 
 
 #endif

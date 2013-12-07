@@ -90,38 +90,40 @@ int main()
     // Initialize UART Communication
     InitUART2(PbClk);
 
-    // Let's set the pointers we initialized to the addresses
-    // defined at the beginning
-    ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
-    ptr_ID = (void*)ID_ADDRESS;
-    // Let's read the value in the flag address:
-    ID_flag = (char) (*ptr_ID_flag);
+    /* // Let's set the pointers we initialized to the addresses */
+    /* // defined at the beginning */
+    /* ptr_ID_flag = (void*)ID_ADDRESS_FLAG; */
+    /* ptr_ID = (void*)ID_ADDRESS; */
+    /* // Let's read the value in the flag address: */
+    /* ID_flag = (char) (*ptr_ID_flag); */
        
-    if(ID_flag != '1' || !swUser)
-    {
-    	// If either of these are true, then let's read our
-    	// address from the XBee
-    	mLED_2_Toggle();
-    	ID = GetID();
-    	mLED_3_Toggle();
-    	// Now, store the newly read ID in its memory address
-	delay();
-    	NVMWriteWord(ptr_ID , (char) ID);
-    	if(NVMIsError())
-    	{
-    	    mLED_1_Toggle();
-    	    NVMClearError();
-    	}
-	delay();
-    	// Now, set the flag that says we have read in the memory
-    	// address
-    	NVMWriteWord(ptr_ID_flag, '1');
-    }
-    else
-    {
-    	// We just read the IDValue
-    	ID = (char) (*ptr_ID);
-    }
+    /* if(ID_flag != '1' || !swUser) */
+    /* { */
+    /* 	// If either of these are true, then let's read our */
+    /* 	// address from the XBee */
+    /* 	mLED_2_Toggle(); */
+    /* 	ID = GetID(); */
+    /* 	mLED_3_Toggle(); */
+    /* 	// Now, store the newly read ID in its memory address */
+    /* 	delay(); */
+    /* 	NVMWriteWord(ptr_ID , (char) ID); */
+    /* 	if(NVMIsError()) */
+    /* 	{ */
+    /* 	    mLED_1_Toggle(); */
+    /* 	    NVMClearError(); */
+    /* 	} */
+    /* 	delay(); */
+    /* 	// Now, set the flag that says we have read in the memory */
+    /* 	// address */
+    /* 	NVMWriteWord(ptr_ID_flag, '1'); */
+    /* } */
+    /* else */
+    /* { */
+    /* 	// We just read the IDValue */
+    /* 	ID = (char) (*ptr_ID); */
+    /* } */
+
+    ID = '1';
 
     // Send feedback to the user:
     putsUART2("Program Started\r\n\n");
@@ -147,16 +149,19 @@ int main()
     ////////////////////////////////////////
     // ADW - 12/6/13 Initialize ADC Pin B2 for Automatic sampling, manual conversion
     AD1PCFG = 0xFFFB; // all PORTB = Digital but RB2 = analog 
-    AD1CON1 = 0x0004; // ASAM bit = 1 implies acquisition
-    // starts immediately after last 
-    // conversion is done
-    AD1CHS = 0x00020000; // Connect RB2/AN2 as CH0 input
-    // in this example RB7/AN7 is the input
-    AD1CSSL = 0;
-    AD1CON3 = 0x0002; // Sample time manual, TAD = internal 6 TPB
-    AD1CON2 = 0;
+    /* AD1CON1 = 0x0004; // ASAM bit = 1 implies acquisition */
+    /* // starts immediately after last  */
+    /* // conversion is done */
+    /* AD1CHS = 0x00020000; // Connect RB2/AN2 as CH0 input */
+    /* // in this example RB7/AN7 is the input */
+    /* AD1CSSL = 0; */
+    /* AD1CON3 = 0x0002; // Sample time manual, TAD = internal 6 TPB */
+    /* AD1CON2 = 0; */
 
-    AD1CON1SET = 0x8000; // turn ON the ADC
+    /* AD1CON1SET = 0x8000; // turn ON the ADC */
+    AD1CHS = 0x00020000;
+    AD1CON3bits.ADCS = 3;
+    AD1CON1bits.ADON = 1;
     ////////////////////////////////////////
 
     // Initialize the PWM pins:

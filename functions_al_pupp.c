@@ -89,7 +89,8 @@ controller for trajectory following.
 #define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (5)
 #define SYS_FREQ	(80000000L)
-
+// How many samples of ADC
+#define ADC_LENGTH (1500)
 
 /** Global Variables **************************************************/
 static short int DATA_LENGTH = 12;
@@ -171,7 +172,7 @@ static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
-				    'e','c','d','k','t','n','b','a','i'};
+				    'e','c','d','k','t','n','b','a','i', 'z'};
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose (R)
@@ -193,6 +194,7 @@ static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
 //	'b' = Reset current winch height estimates (R)
 //	'a' = Set values for all configuration variables (L)
 //	'i' = Translational and rotational velocity command plus winches (L)
+//	'z' = Request to send back the full array of data from the ADC (S)
 /******************************************************************************/
 static short int bad_data_total = 0;
 static short int bad_data = 0;
@@ -204,7 +206,8 @@ static short int bad_data_counter = 0;
 //  Kinematic controller variables:
 static unsigned int call_count = 0;
 static unsigned int adc_count = 0;
-static int ADCValue[1500] = { 0 }; //Hard-code 5sec of samples at 300Hz
+static int ADCValue[ADC_LENGTH] = { 0 }; //Hard-code 5sec of samples at 300Hz
+static unsigned short adc_request_flag = 0;
 static float dir_sign = 1.0;
 static float tvec[2] = {0.0, 0.0};
 static float xvec[3] = {0.0, 0.0, 0.0};
@@ -261,7 +264,8 @@ void __ISR(_UART2_VECTOR, ipl6) IntUart2Handler(void)
 		    midstring_flag = 1;
 		    DATA_LENGTH = PACKET_SIZE;
 		    // If a request, it is a short packet!
-		    if (temp == 'w' || temp == 'e' || temp == 'c')
+		    if (temp == 'w' || temp == 'e' || temp == 'c' ||
+			temp == 'z')
 			DATA_LENGTH = SMALL_PACKET_SIZE;
 		    // Is this a long packet?
 		    if (temp == 't' || temp == 'n' ||
@@ -512,14 +516,14 @@ void __ISR(_TIMER_4_VECTOR, ipl7) Data_Timeout()
 void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 {
 
-    float Vr = 0.0;
-    float Vl = 0.0;
-    float Vtl = 0.0;
-    float Vtr = 0.0;
-    float omega = 0.0;
-    float R = 0.0;
+    /* float Vr = 0.0; */
+    /* float Vl = 0.0; */
+    /* float Vtl = 0.0; */
+    /* float Vtr = 0.0; */
+    /* float omega = 0.0; */
+    /* float R = 0.0; */
     int top_left_current, top_right_current, left_current, right_current;
-    const unsigned int num = floor(frequency/ controller_freq);
+    /* const unsigned int num = floor(frequency/ controller_freq); */
     
     left_current = left_steps;
     right_current = right_steps;
@@ -554,13 +558,29 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     if(fabsf(top_right_error) > ERROR_DEADBAND)
 	SetSpeedTopRight(top_right_error, dtbase);
 
+    unsigned int elapsed, finishtime;
+    unsigned int SAMPLE_TIME = 10;
     // Take ADC sample and save
     if (movement_flag==1 && adc_count>4){
-        AD1CON1SET = 0x0002;        // start Converting
-        while (!(AD1CON1 & 0x0001));// conversion done?
-        ADCValue[call_count] = ADC1BUF0;        // yes then get ADC value
-        adc_count=0;
+	// disable WDT
+	DisableWDT();
+	// start sampling
+	AD1CON1bits.SAMP = 1;
+	// sample for a few core clock ticks
+	elapsed = ReadCoreTimer();
+	finishtime = elapsed + SAMPLE_TIME;
+	while (ReadCoreTimer() < finishtime);
+	AD1CON1bits.SAMP = 0;   // stop sampling and start converting
+	while (!AD1CON1bits.DONE); // wait for the conversion process to finish
+        ADCValue[call_count] = ADC1BUF0; // get ADC value
+	// increment counters
+	adc_count=0;
         call_count++;
+	if (call_count >= ADC_LENGTH) call_count = 0;
+	// enable WDT
+	ClearEventWDT();
+	ClearWDT();
+	EnableWDT();
     } else {
         adc_count++;
     }
@@ -963,6 +983,15 @@ void InitMotorPWM(void)
     OpenTimer3(T3options , MAX_RESOLUTION);
 }
 
+void StopMotorPWM(void)
+{
+    OpenOC5(OC_OFF,0,0);
+    OpenOC3(OC_OFF,0,0);
+    OpenOC2(OC_OFF,0,0);
+    OpenOC1(OC_OFF,0,0);
+    return;
+}
+
 
 void InitEncoder(void)
 {	
@@ -1021,6 +1050,15 @@ void InitEncoder(void)
     // Enable system-wide interrupts:
     INTEnableSystemMultiVectoredInt();
 } 
+
+void StopEncoder(void)
+{
+    OpenCapture5(IC_OFF);
+    OpenCapture2(IC_OFF);
+    OpenCapture4(IC_OFF);
+    OpenCapture1(IC_OFF);
+    return;
+}
 
 // This function is used for initilizing the UART2
 void InitUART2(int pbClk)
@@ -1268,12 +1306,13 @@ void interp_command(void)
     	    if (Command_String[j] != 0)
 	    {
 		movement_flag = 0;
+		mLED_2_Off();
 		break;
 	    }
 	    else
 	    {
 		movement_flag = 1;
-		mLED_2_Toggle();
+		mLED_2_On();
 	    }
     	}
     }
@@ -1359,7 +1398,7 @@ void interp_command(void)
 	exec_state = 0;
 	stop_all_motors();
 	movement_flag = 0;
-	mLED_2_Toggle();
+	mLED_2_Off();
 	break;
 
     case 'w':
@@ -1464,6 +1503,13 @@ void interp_command(void)
 
 	pose_flag = 0;
 	break;
+	
+    case 'z':
+	// request to send back all of the ADC data:
+	exec_state = 0;
+	adc_request_flag = 1;
+	break;
+
     }
 	
     // Now, let's re-enable all interrupts:
@@ -1484,6 +1530,10 @@ void RuntimeOperation(void)
 
     // Run kinematic controller?
     if(controller_flag == 1)  run_controller();
+
+    // If we have received a command that tells us to send back the array of ADC
+    // data, let's do it
+    if(adc_request_flag == 1) send_adc_data();
 }
 
 // This function is for determining the minium of two numbers:
@@ -2003,3 +2053,46 @@ void check_safety(void)
 
     return;
 }
+
+
+void send_adc_data(void)
+{
+    DisableWDT();
+    // stop the motors
+    stop_all_motors();
+    // disable motion of the robot and other commands:
+    movement_flag = 0;
+    mLED_2_Off();
+    // and disable interrupts that may interfere with sending the data back
+    StopMotorPWM();
+    StopEncoder();
+    mT2IntEnable(0);
+    mT4IntEnable(0);
+
+    // now we are ready to send back the array:
+    int i = 0;
+    unsigned char packet[10];
+    // initialize to zeros
+    memset(packet,0,sizeof(packet));
+    // now iterate and send values:
+    for (i=0; i<ADC_LENGTH; i++)
+    {
+	sprintf((char*) packet, "%d\r\n", ADCValue[i]);
+	SendDataBuffer((char*) packet, 10);
+    }
+
+    // re-enable the WDT, and interrupts
+    InitMotorPWM();
+    InitTimer2();
+    InitTimer4();
+    InitEncoder();
+    ClearEventWDT();
+    ClearWDT();
+    EnableWDT();
+
+    // disable this function
+    adc_request_flag =0;
+
+    return;
+}
+    
