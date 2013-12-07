@@ -40,25 +40,25 @@ puppeteers with four motors.
 #include "HardwareProfile.h"
 
 /** Global Variables ******************************************/
-#define SYS_FREQ 	       (80000000L)	
-#define TOGGLES_PER_SEC	       1000
-#define CORE_TICK_RATE	       (SYS_FREQ/2/TOGGLES_PER_SEC)
-#define UART_TIMEOUT	       (2100000)
-#define ID_ADDRESS	       (0x9D07CFD0)
-#define ID_ADDRESS_FLAG	       (0x9D07CFE0)
+#define SYS_FREQ               (80000000L)
+#define TOGGLES_PER_SEC        1000
+#define CORE_TICK_RATE         (SYS_FREQ/2/TOGGLES_PER_SEC)
+#define UART_TIMEOUT           (2100000)
+#define ID_ADDRESS             (0x9D07CFD0)
+#define ID_ADDRESS_FLAG        (0x9D07CFE0)
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
 
 /** User Called Functions *************************************/
 
 // Will currently only work for robots with a node identifier that is
-// less than two character 
+// less than two character
 char GetID(void)
 {
     INTEnable(INT_U2RX,0);
     INTEnable(INT_U2TX,0);
     char InBuffer[10];
-    char ID;   
+    char ID;
     delay();
     putsUART2("+++");
     delay();
@@ -78,7 +78,7 @@ int main()
 {
     int PbClk; // Frequency of the peripheral bus clock
     long int j = 0;
-  
+
     // Let's set the integer PbClk to be the value of the frequency
     // of the peripheral bus clock
     PbClk = SYSTEMConfigPerformance(SYS_FREQ);
@@ -90,40 +90,38 @@ int main()
     // Initialize UART Communication
     InitUART2(PbClk);
 
-    /* // Let's set the pointers we initialized to the addresses */
-    /* // defined at the beginning */
-    /* ptr_ID_flag = (void*)ID_ADDRESS_FLAG; */
-    /* ptr_ID = (void*)ID_ADDRESS; */
-    /* // Let's read the value in the flag address: */
-    /* ID_flag = (char) (*ptr_ID_flag); */
-       
-    /* if(ID_flag != '1' || !swUser) */
-    /* { */
-    /* 	// If either of these are true, then let's read our */
-    /* 	// address from the XBee */
-    /* 	mLED_2_Toggle(); */
-    /* 	ID = GetID(); */
-    /* 	mLED_3_Toggle(); */
-    /* 	// Now, store the newly read ID in its memory address */
-    /* 	delay(); */
-    /* 	NVMWriteWord(ptr_ID , (char) ID); */
-    /* 	if(NVMIsError()) */
-    /* 	{ */
-    /* 	    mLED_1_Toggle(); */
-    /* 	    NVMClearError(); */
-    /* 	} */
-    /* 	delay(); */
-    /* 	// Now, set the flag that says we have read in the memory */
-    /* 	// address */
-    /* 	NVMWriteWord(ptr_ID_flag, '1'); */
-    /* } */
-    /* else */
-    /* { */
-    /* 	// We just read the IDValue */
-    /* 	ID = (char) (*ptr_ID); */
-    /* } */
+    // Let's set the pointers we initialized to the addresses
+    // defined at the beginning
+    ptr_ID_flag = (void*)ID_ADDRESS_FLAG;
+    ptr_ID = (void*)ID_ADDRESS;
+    // Let's read the value in the flag address:
+    ID_flag = (char) (*ptr_ID_flag);
 
-    ID = '1';
+    if(ID_flag != '1' || !swUser)
+    {
+        // If either of these are true, then let's read our
+        // address from the XBee
+        mLED_2_Toggle();
+        ID = GetID();
+        mLED_3_Toggle();
+        // Now, store the newly read ID in its memory address
+        delay();
+        NVMWriteWord(ptr_ID , (char) ID);
+        if(NVMIsError())
+        {
+            mLED_1_Toggle();
+            NVMClearError();
+        }
+        delay();
+        // Now, set the flag that says we have read in the memory
+        // address
+        NVMWriteWord(ptr_ID_flag, '1');
+    }
+    else
+    {
+        // We just read the IDValue
+        ID = (char) (*ptr_ID);
+    }
 
     // Send feedback to the user:
     putsUART2("Program Started\r\n\n");
@@ -136,10 +134,10 @@ int main()
 
     while(swProgram)
     {
-	mLED_1_On();
-	mLED_2_On();
-	mLED_3_On();
-	mLED_4_On();
+        mLED_1_On();
+        mLED_2_On();
+        mLED_3_On();
+        mLED_4_On();
     }
     mLED_1_Off();
     mLED_2_Off();
@@ -148,7 +146,7 @@ int main()
 
     ////////////////////////////////////////
     // ADW - 12/6/13 Initialize ADC Pin B2 for Automatic sampling, manual conversion
-    AD1PCFG = 0xFFFB; // all PORTB = Digital but RB2 = analog 
+    AD1PCFG = 0xFFFB; // all PORTB = Digital but RB2 = analog
     /* AD1CON1 = 0x0004; // ASAM bit = 1 implies acquisition */
     /* // starts immediately after last  */
     /* // conversion is done */
@@ -181,15 +179,15 @@ int main()
 
     while(1)
     {
-	// We simply call this function repeatedly, and it executes
-	// the main libraries written for the mobile robot
-	RuntimeOperation();
-	j++;
-	if(j%500000 == 0) mLED_4_Toggle();
+        // We simply call this function repeatedly, and it executes
+        // the main libraries written for the mobile robot
+        RuntimeOperation();
+        j++;
+        if(j%500000 == 0) mLED_4_Toggle();
 
-	// To ensure that the PIC code is not stuck somehow, we
-	// use a watchdog timer. Let's reset it here:
-	ClearWDT();
+        // To ensure that the PIC code is not stuck somehow, we
+        // use a watchdog timer. Let's reset it here:
+        ClearWDT();
     }
     CloseOC5();
     CloseOC1();
