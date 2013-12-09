@@ -145,21 +145,11 @@ int main()
     mLED_4_Off();
 
     ////////////////////////////////////////
-    // ADW - 12/6/13 Initialize ADC Pin B2 for Automatic sampling, manual conversion
-    AD1PCFG = 0xFFFB; // all PORTB = Digital but RB2 = analog
-    /* AD1CON1 = 0x0004; // ASAM bit = 1 implies acquisition */
-    /* // starts immediately after last  */
-    /* // conversion is done */
-    /* AD1CHS = 0x00020000; // Connect RB2/AN2 as CH0 input */
-    /* // in this example RB7/AN7 is the input */
-    /* AD1CSSL = 0; */
-    /* AD1CON3 = 0x0002; // Sample time manual, TAD = internal 6 TPB */
-    /* AD1CON2 = 0; */
-
-    /* AD1CON1SET = 0x8000; // turn ON the ADC */
-    AD1CHS = 0x00020000;
-    AD1CON3bits.ADCS = 3;
-    AD1CON1bits.ADON = 1;
+    // ADW - 12/6/13 Initialize ADC Pin B1 for Automatic sampling, manual conversion
+    AD1PCFG = 0xFFFD; 		// all PORTB = Digital but RB1 = analog
+    AD1CHS = 0x00010000;	// set RB1 to CH0
+    AD1CON3bits.ADCS = 3;   // set sample period
+    AD1CON1bits.ADON = 1;   // turn on ADC
     ////////////////////////////////////////
 
     // Initialize the PWM pins:
