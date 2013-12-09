@@ -106,7 +106,7 @@ int main()
         mLED_3_Toggle();
         // Now, store the newly read ID in its memory address
         delay();
-        NVMWriteWord(ptr_ID , (char) ID);
+        NVMWriteWord(ptr_ID , (unsigned int) ID);
         if(NVMIsError())
         {
             mLED_1_Toggle();
@@ -115,7 +115,7 @@ int main()
         delay();
         // Now, set the flag that says we have read in the memory
         // address
-        NVMWriteWord(ptr_ID_flag, '1');
+        NVMWriteWord(ptr_ID_flag, (unsigned int) '1');
     }
     else
     {
@@ -129,6 +129,11 @@ int main()
     /* ID = '1'; */
     putsUART2("ID = ");
     putcUART2(ID);
+    while(BusyUART2());
+    putsUART2("\n\r");
+
+    putsUART2("ptr_ID = ");
+    putcUART2((char) (*ptr_ID));
     while(BusyUART2());
     putsUART2("\n\r");
 

@@ -4,9 +4,9 @@ import serial
 import matplotlib.pyplot as mp
 import time
 
-def open_comm(device='/dev/ttyUSB2',
+def open_comm(device='/dev/ttyUSB0',
               baud=115200,
-              stop=1):
+              stop=2):
     """
     Function for opening comport
     """
@@ -17,13 +17,12 @@ def open_comm(device='/dev/ttyUSB2',
         s.close()
         comport = serial.Serial(device,
                             baudrate=baud,
-                            timeout=1,
+                            timeout=0.5,
                             parity=serial.PARITY_NONE,
                             stopbits=stop,
                             rtscts=False)
     except (serial.SerialException, ValueError):
         print "Could not open serial port",device+"!"
-        list_ports(device)
         sys.exit(1)
         
     comport.flushInput()
@@ -57,8 +56,11 @@ com.write(cmd)
 
 dat = [] 
 # read in all data:
-for i in range(1500):
-    ln = com.readline()
+err_flag = False
+while not err_flag:
+    ln = com.read(size=10)
+    if len(ln) < 10:
+        err_flag = True
     ln = ln.splitlines()
     try:
         ln = ln[0]

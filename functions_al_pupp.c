@@ -985,10 +985,16 @@ void InitMotorPWM(void)
 
 void StopMotorPWM(void)
 {
+    // set all OC modules off
     OpenOC5(OC_OFF,0,0);
     OpenOC3(OC_OFF,0,0);
     OpenOC2(OC_OFF,0,0);
     OpenOC1(OC_OFF,0,0);
+    CloseTimer3();
+
+    // set all pins low:
+    LATD &= 0xFFE8;    
+        
     return;
 }
 
@@ -2064,10 +2070,11 @@ void send_adc_data(void)
     movement_flag = 0;
     mLED_2_Off();
     // and disable interrupts that may interfere with sending the data back
-    StopMotorPWM();
-    StopEncoder();
     mT2IntEnable(0);
     mT4IntEnable(0);
+    StopMotorPWM();
+    StopEncoder();
+
 
     // now we are ready to send back the array:
     int i = 0;
@@ -2083,9 +2090,9 @@ void send_adc_data(void)
 
     // re-enable the WDT, and interrupts
     InitMotorPWM();
+    InitEncoder();
     InitTimer2();
     InitTimer4();
-    InitEncoder();
     ClearEventWDT();
     ClearWDT();
     EnableWDT();
