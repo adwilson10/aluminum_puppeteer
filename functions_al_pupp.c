@@ -166,8 +166,8 @@ static float top_left_desired;
 static float top_right_desired;	
 
 // Controller gains:
-static float kp = 250;		// Gain on the proportional error term
-static float ki = 50;		// Gain on the integral error term
+static float kp = 50;		// Gain on the proportional error term
+static float ki = 5;		// Gain on the integral error term
 static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
@@ -555,13 +555,13 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
     if(fabsf(right_error) > ERROR_DEADBAND) SetSpeedRight(right_error, dtbase);
     if(fabsf(top_left_error) > ERROR_DEADBAND)
 	SetSpeedTopLeft(top_left_error, dtbase);
-    if(fabsf(top_right_error) > ERROR_DEADBAND)
-	SetSpeedTopRight(top_right_error, dtbase);
+    /* if(fabsf(top_right_error) > ERROR_DEADBAND) */
+    SetSpeedTopRight(top_right_error, dtbase);
 
     unsigned int elapsed, finishtime;
     unsigned int SAMPLE_TIME = 10;
     // Take ADC sample and save
-    if (movement_flag==1 && adc_count>4){
+    if (movement_flag==1 && adc_count>4 && call_count<ADC_LENGTH){
 	// disable WDT
 	DisableWDT();
 	// start sampling
@@ -576,7 +576,7 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	// increment counters
 	adc_count=0;
         call_count++;
-	if (call_count >= ADC_LENGTH) call_count = 0;
+	/* if (call_count >= ADC_LENGTH) call_count = 0; */
 	// enable WDT
 	ClearEventWDT();
 	ClearWDT();
@@ -919,14 +919,16 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
     static float tau = 1.0/(2.0*M_PI*500.0);// Filtering parameter -
 					    // Value in denominator sets
 					    // cutoff frequency for LPF
-
+    if (fabsf(error) < ERROR_DEADBAND)
+	error = 0;
     // Calculate integrated error:
     sum_error += error;
     // Calculate filtered derivative error:
     d_error = (dtbase*error+dtbase*last_error
 	       +(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
     // Calculate total error:
-    total_error = error*kp+sum_error*ki+d_error*kd;
+    /* total_error = error*kp+sum_error*ki+d_error*kd; */
+    total_error = sum_error*ki;
     // Get PWM Value:
     PWMVal = (unsigned int) (fabsf(total_error));
     // Set stored values:
@@ -2098,8 +2100,12 @@ void send_adc_data(void)
     EnableWDT();
 
     // disable this function
-    adc_request_flag =0;
+    adc_request_flag = 0;
 
+    // reset value in array:
+    call_count = 0;
+    memset(ADCValue, 0, ADC_LENGTH);
+    
     return;
 }
     
