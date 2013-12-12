@@ -166,8 +166,8 @@ static float top_left_desired;
 static float top_right_desired;	
 
 // Controller gains:
-static float kp = 50;		// Gain on the proportional error term
-static float ki = 5;		// Gain on the integral error term
+static float kp = 250;		// Gain on the proportional error term
+static float ki = 50;		// Gain on the integral error term
 static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
@@ -928,7 +928,7 @@ void SetSpeedTopRight(float error, float dt)  // motor speed in rad/s
 	       +(2*tau-dtbase)*last_d_error)/(dtbase+2*tau);
     // Calculate total error:
     /* total_error = error*kp+sum_error*ki+d_error*kd; */
-    total_error = sum_error*ki;
+    total_error = sum_error*5;
     // Get PWM Value:
     PWMVal = (unsigned int) (fabsf(total_error));
     // Set stored values:
