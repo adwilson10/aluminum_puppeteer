@@ -40,9 +40,6 @@ puppeteers with four motors.
 #include "HardwareProfile.h"
 
 /** Global Variables ******************************************/
-#define SYS_FREQ               (80000000L)
-#define TOGGLES_PER_SEC        1000
-#define CORE_TICK_RATE         (SYS_FREQ/2/TOGGLES_PER_SEC)
 #define UART_TIMEOUT           (2100000)
 #define ID_ADDRESS             (0x9D07CFD0)
 #define ID_ADDRESS_FLAG        (0x9D07CFE0)

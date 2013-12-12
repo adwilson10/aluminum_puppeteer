@@ -88,7 +88,6 @@ controller for trajectory following.
 #define MAX_BAD_DATA	(10)
 #define MAX_BAD_COUNTER  (200)
 #define timeout_frequency (5)
-#define SYS_FREQ	(80000000L)
 // How many samples of ADC
 #define ADC_LENGTH (1500)
 
@@ -2081,13 +2080,17 @@ void send_adc_data(void)
     // now we are ready to send back the array:
     int i = 0;
     unsigned char packet[10];
+    unsigned int SEND_FREQ = 50; // how fast to send packets in Hz
+    unsigned int COUNT_DELAY = CORE_TICK_RATE/SEND_FREQ;
     // initialize to zeros
     memset(packet,0,sizeof(packet));
     // now iterate and send values:
     for (i=0; i<ADC_LENGTH; i++)
     {
+	WriteCoreTimer(0);
 	sprintf((char*) packet, "%d\r\n", ADCValue[i]);
 	SendDataBuffer((char*) packet, 10);
+	while(ReadCoreTimer() < COUNT_DELAY);
     }
 
     // re-enable the WDT, and interrupts
