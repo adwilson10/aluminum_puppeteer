@@ -3,6 +3,8 @@
 import serial
 import matplotlib.pyplot as mp
 import time
+import sys
+
 
 def open_comm(device='/dev/ttyUSB0',
               baud=115200,
@@ -10,21 +12,21 @@ def open_comm(device='/dev/ttyUSB0',
     """
     Function for opening comport
     """
-    global OS 
-    print "opening serial port:",device
+    global OS
+    print "opening serial port:", device
     try:
         s = serial.Serial(device)
         s.close()
         comport = serial.Serial(device,
-                            baudrate=baud,
-                            timeout=0.5,
-                            parity=serial.PARITY_NONE,
-                            stopbits=stop,
-                            rtscts=False)
+                                baudrate=baud,
+                                timeout=0.5,
+                                parity=serial.PARITY_NONE,
+                                stopbits=stop,
+                                rtscts=False)
     except (serial.SerialException, ValueError):
-        print "Could not open serial port",device+"!"
+        print "Could not open serial port", device+"!"
         sys.exit(1)
-        
+
     comport.flushInput()
     comport.flushOutput()
     return comport
@@ -39,7 +41,7 @@ com = open_comm()
 
 # send command to unlock PIC
 time.sleep(0.5)
-cmd =  'm1\x00\x00\x00\x00\x00\x00\x00\x00\x00a'
+cmd = 'm1\x00\x00\x00\x00\x00\x00\x00\x00\x00a'
 com.write(cmd)
 
 # wait for keypress
@@ -51,10 +53,10 @@ print "Sending request for data"
 # send command to request data PIC
 com.flushInput()
 com.flushOutput()
-cmd =  'z1' + chr(0x54)
+cmd = 'z1' + chr(0x54)
 com.write(cmd)
 
-dat = [] 
+dat = []
 # read in all data:
 err_flag = False
 while not err_flag:
@@ -75,3 +77,4 @@ mp.show()
 mp.close()
 mp.cla()
 mp.clf()
+
