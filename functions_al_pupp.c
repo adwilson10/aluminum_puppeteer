@@ -171,7 +171,7 @@ static float kd = 0.5;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
-				    'e','c','d','k','t','n','b','a','i', 'z'};
+				    'e','c','d','k','t','n','b','a','i', 'x', 'z'};
 /******************************************************************************/
 // Note that the header characters mean the following:
 //	'p' = Drive to a desired pose (R)
@@ -193,6 +193,7 @@ static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
 //	'b' = Reset current winch height estimates (R)
 //	'a' = Set values for all configuration variables (L)
 //	'i' = Translational and rotational velocity command plus winches (L)
+//	'x' = Request to send back a single value from the ADC array (R)
 //	'z' = Request to send back the full array of data from the ADC (S)
 /******************************************************************************/
 static short int bad_data_total = 0;
@@ -1305,25 +1306,34 @@ void interp_command(void)
     ClearWDT();
 
     // First, let's check to see if we are actually moving yet:
-    if (movement_flag == 0 && data == 'm')
+    if (data == 'm')
     {
-    	short int j;
-    	for(j=2;j<DATA_LENGTH-1;j++)
-    	{
-    	    if (Command_String[j] != 0)
+	// reset value in ADC array:
+	int i=0;
+	for (i=0; i<ADC_LENGTH; i++)
+	    ADCValue[i] = 0;
+	call_count = 0;
+	// handle toggling of movement flag
+    	if (movement_flag == 0)
+	{
+	    short int j;
+	    for(j=2;j<DATA_LENGTH-1;j++)
 	    {
-		movement_flag = 0;
-		mLED_2_Off();
-		break;
+		if (Command_String[j] != 0)
+		{
+		    movement_flag = 0;
+		    mLED_2_Off();
+		    break;
+		}
+		else
+		{
+		    movement_flag = 1;
+		    mLED_2_On();
+		}
 	    }
-	    else
-	    {
-		movement_flag = 1;
-		mLED_2_On();
-	    }
-    	}
+	}	
     }
-    if (movement_flag == 0)
+    if (movement_flag == 0 && data != 'z' && data != 'x')
     {
     	/* INTEnable(INT_U2RX, 1); */
     	/* INTEnable(INT_U2TX, 1); */
@@ -1511,6 +1521,13 @@ void interp_command(void)
 	pose_flag = 0;
 	break;
 	
+    case 'x':
+	exec_state = 0;
+	int index = atoi((char*) &Command_String[2]);
+	send_single_adc_value((int) index);
+	
+	break;
+
     case 'z':
 	// request to send back all of the ADC data:
 	exec_state = 0;
@@ -2062,6 +2079,15 @@ void check_safety(void)
 }
 
 
+
+void send_single_adc_value(int index)
+{
+    unsigned char packet[12];
+    sprintf((char*) packet, "s%04d,%04d\n", index, ADCValue[index]);
+    SendDataBuffer((char*) packet, sizeof(packet));
+}
+
+
 void send_adc_data(void)
 {
     DisableWDT();
@@ -2079,19 +2105,23 @@ void send_adc_data(void)
 
     // now we are ready to send back the array:
     int i = 0;
-    unsigned char packet[10];
+    /* unsigned char packet[10]; */
     unsigned int SEND_FREQ = 50; // how fast to send packets in Hz
     unsigned int COUNT_DELAY = CORE_TICK_RATE/SEND_FREQ;
     // initialize to zeros
-    memset(packet,0,sizeof(packet));
+    /* memset(packet,0,sizeof(packet)); */
     // now iterate and send values:
     for (i=0; i<ADC_LENGTH; i++)
     {
 	WriteCoreTimer(0);
-	sprintf((char*) packet, "%d\r\n", ADCValue[i]);
-	SendDataBuffer((char*) packet, 10);
+	send_single_adc_value(i);
 	while(ReadCoreTimer() < COUNT_DELAY);
     }
+	/* sprintf((char*) packet, "%d\r\n", ADCValue[i]); */
+	/* sprintf((char*) packet, "%d, %d\n", i, ADCValue[i]); */
+	/* putsUART2((char*) packet); */
+	/* while(BusyUART2()); */
+	/* SendDataBuffer((char*) packet, 10); */
 
     // re-enable the WDT, and interrupts
     InitMotorPWM();
@@ -2105,9 +2135,9 @@ void send_adc_data(void)
     // disable this function
     adc_request_flag = 0;
 
-    // reset value in array:
-    call_count = 0;
-    memset(ADCValue, 0, ADC_LENGTH);
+    /* // reset value in array: */
+    /* call_count = 0; */
+    /* memset(ADCValue, 0, ADC_LENGTH); */
     
     return;
 }

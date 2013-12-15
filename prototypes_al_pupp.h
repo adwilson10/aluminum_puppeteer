@@ -94,6 +94,6 @@ float find_min_angle(float a, float b);
 float sign(float x);
 // send back adc data function:
 void send_adc_data(void);
-
+void send_single_adc_value(int);
 
 #endif
