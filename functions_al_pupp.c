@@ -580,9 +580,8 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	ClearEventWDT();
 	ClearWDT();
 	EnableWDT();
-    } else {
-        adc_count++;
     }
+        adc_count++;
 
 
 /*    // Now let's get the wheels speeds and convert them into*/
