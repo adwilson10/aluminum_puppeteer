@@ -165,9 +165,9 @@ static float top_left_desired;
 static float top_right_desired;	
 
 // Controller gains:
-static float kp = 250;		// Gain on the proportional error term
-static float ki = 50;		// Gain on the integral error term
-static float kd = 0.5;		// Gain on the derivative error term
+static float kp = 125;		// Gain on the proportional error term
+static float ki = 25;		// Gain on the integral error term
+static float kd = 0.1;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
@@ -1305,25 +1305,34 @@ void interp_command(void)
     ClearWDT();
 
     // First, let's check to see if we are actually moving yet:
-    if (movement_flag == 0 && data == 'm')
+    if (data == 'm')
     {
-    	short int j;
-    	for(j=2;j<DATA_LENGTH-1;j++)
-    	{
-    	    if (Command_String[j] != 0)
+	// reset value in ADC array:
+	int i=0;
+	for (i=0; i<ADC_LENGTH; i++)
+	    ADCValue[i] = 0;
+	call_count = 0;
+	// handle toggling of movement flag
+    	if (movement_flag == 0)
+	{
+	    short int j;
+	    for(j=2;j<DATA_LENGTH-1;j++)
 	    {
-		movement_flag = 0;
-		mLED_2_Off();
-		break;
+		if (Command_String[j] != 0)
+		{
+		    movement_flag = 0;
+		    mLED_2_Off();
+		    break;
+		}
+		else
+		{
+		    movement_flag = 1;
+		    mLED_2_On();
+		}
 	    }
-	    else
-	    {
-		movement_flag = 1;
-		mLED_2_On();
-	    }
-    	}
+	}	
     }
-    if (movement_flag == 0)
+    if (movement_flag == 0 && data != 'z')
     {
     	/* INTEnable(INT_U2RX, 1); */
     	/* INTEnable(INT_U2TX, 1); */
@@ -2105,9 +2114,9 @@ void send_adc_data(void)
     // disable this function
     adc_request_flag = 0;
 
-    // reset value in array:
-    call_count = 0;
-    memset(ADCValue, 0, ADC_LENGTH);
+    /* // reset value in array: */
+    /* call_count = 0; */
+    /* memset(ADCValue, 0, ADC_LENGTH); */
     
     return;
 }
