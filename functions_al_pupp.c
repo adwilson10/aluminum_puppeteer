@@ -165,9 +165,9 @@ static float top_left_desired;
 static float top_right_desired;	
 
 // Controller gains:
-static float kp = 250;		// Gain on the proportional error term
-static float ki = 50;		// Gain on the integral error term
-static float kd = 0.5;		// Gain on the derivative error term
+static float kp = 125;		// Gain on the proportional error term
+static float ki = 25;		// Gain on the integral error term
+static float kd = 0.1;		// Gain on the derivative error term
 
 // Add a bunch of variables for communication safety:
 static unsigned char header_list[]={'p','l','r','h','s','q','m','w',
@@ -581,9 +581,8 @@ void __ISR(_TIMER_2_VECTOR, ipl4) CheckKinematics()
 	ClearEventWDT();
 	ClearWDT();
 	EnableWDT();
-    } else {
-        adc_count++;
     }
+        adc_count++;
 
 
 /*    // Now let's get the wheels speeds and convert them into*/

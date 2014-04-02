@@ -41,8 +41,11 @@ puppeteers with four motors.
 
 /** Global Variables ******************************************/
 #define UART_TIMEOUT           (2100000)
-#define ID_ADDRESS             (0x9D07CFD0)
-#define ID_ADDRESS_FLAG        (0x9D07CFE0)
+#define BASE_PAGE	       (0x9D016000)
+#define ID_ADDRESS             (BASE_PAGE + 0x400)
+#define ID_ADDRESS_FLAG        (BASE_PAGE + 0x800)
+/* #define ID_ADDRESS             (0x9D07CFD0) */
+/* #define ID_ADDRESS_FLAG        (0x9D07CFE0) */
 char ID, ID_flag;
 unsigned int *ptr_ID, *ptr_ID_flag;
 
@@ -103,6 +106,7 @@ int main()
         mLED_3_Toggle();
         // Now, store the newly read ID in its memory address
         delay();
+	NVMErasePage((void*) BASE_PAGE);
         NVMWriteWord(ptr_ID , (unsigned int) ID);
         if(NVMIsError())
         {
@@ -113,6 +117,12 @@ int main()
         // Now, set the flag that says we have read in the memory
         // address
         NVMWriteWord(ptr_ID_flag, (unsigned int) '1');
+	if(NVMIsError())
+        {
+            mLED_2_Toggle();
+            NVMClearError();
+        }
+
     }
     else
     {
@@ -123,7 +133,6 @@ int main()
     // Send feedback to the user:
     putsUART2("Program Started\r\n\n");
     while(BusyUART2());
-    /* ID = '1'; */
     putsUART2("ID = ");
     putcUART2(ID);
     while(BusyUART2());
@@ -133,7 +142,7 @@ int main()
     putcUART2((char) (*ptr_ID));
     while(BusyUART2());
     putsUART2("\n\r");
-
+    
     while(swProgram)
     {
         mLED_1_On();
